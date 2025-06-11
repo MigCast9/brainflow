@@ -1721,3 +1721,63 @@ int get_version_data_handler (char *version, int *num_chars, int max_chars)
     *num_chars = std::min<int> (max_chars, (int)strlen (BRAINFLOW_VERSION_STRING));
     return (int)BrainFlowExitCodes::STATUS_OK;
 }
+
+int get_corr_features(float* signals) {
+    // Calculates correlation features for ACC signals.
+    //     For example:
+    //     accx_accy_corr: correlation coefficient for x and y axes
+    //     accx_accz_corr: correlation coefficient for x and z axes
+    //     accy_accz_corr: correlation coefficient for y and z axes
+    // Args:
+    //     signals (list): List of input signals.
+    //     signal_names (list): List of signal names. It must have the same order with signal array.
+    //     sampling_rate (float): Sampling rate of the ACC signal(s) (Hz).
+
+    // Returns:
+    //     dict: Dictionary of correlation features.
+    // 
+    std::vector<std::string> names = {"accx", "accy", "accz"};
+
+}
+
+Eigen::VectorXf to_eigen(const std::vector<float>& v) {
+    return Eigen::Map<const Eigen::VectorXf>(v.data(), v.size());
+}
+
+// Compute Pearson correlation between two Eigen vectors
+float pearson_corr(const Eigen::VectorXf& x, const Eigen::VectorXf& y) {
+    if (x.size() != y.size() || x.size() == 0) return NAN;
+
+    float mean_x = x.mean();
+    float mean_y = y.mean();
+
+    Eigen::VectorXf diff_x = x.array() - mean_x;
+    Eigen::VectorXf diff_y = y.array() - mean_y;
+
+    float numerator = (diff_x.array() * diff_y.array()).sum();
+    float denominator = std::sqrt(diff_x.squaredNorm() * diff_y.squaredNorm());
+
+    return (denominator == 0.0f) ? NAN : numerator / denominator;
+}
+
+// Compute all pairwise Pearson correlations
+std::vector<std::pair<std::pair<int, int>, float>> compute_signal_correlations(
+    const std::vector<std::vector<float>>& signals
+) {
+    std::vector<std::pair<std::pair<int, int>, float>> results;
+
+    int n = signals.size();
+    std::vector<Eigen::VectorXf> eigen_signals;
+    for (const auto& s : signals) {
+        eigen_signals.push_back(to_eigen(s));
+    }
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = i + 1; j < n; ++j) {
+            float r = pearson_corr(eigen_signals[i], eigen_signals[j]);
+            results.push_back({{i, j}, r});
+        }
+    }
+
+    return results;
+}
